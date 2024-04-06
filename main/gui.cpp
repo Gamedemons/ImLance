@@ -4,12 +4,14 @@
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_stdlib.h"
 #include "../lib/tinyfiledialogs.h"
+#include "../lib/json.hpp"
 #include <string>
 #include <regex>
 #include <filesystem>
 #include <fstream>
 #include <chrono>
 #include "lance_utils.h"
+#include "lance_ini.h"
 
 using std::filesystem::directory_iterator;
 using namespace std::chrono;
@@ -18,6 +20,7 @@ using std::to_string;
 using std::vector;
 using std::ifstream;
 using std::ofstream;
+using json = nlohmann::json;
 using lance::getFileNames;
 using lance::getFileContents;
 using lance::getCurrentTime;
@@ -256,9 +259,10 @@ void gui::EndRender() noexcept
 	if (result == D3DERR_DEVICELOST && device->TestCooperativeLevel() == D3DERR_DEVICENOTRESET)
 		ResetDevice();
 }
-void gui::Render() noexcept
+void gui::Render(int iniTheme) noexcept
 {
 	// Static 
+	static bool firstTimeRun = true;
 	static bool show_app_style_editor = false;
 	static bool show_app_settings = false;
 	static bool show_stat = false;
@@ -271,13 +275,18 @@ void gui::Render() noexcept
 
 	const static char* oldFileNames[] = { "AAAA1", "BBBB2", "CCCC3", "DDDD4" };							// Old File Names
 	const static char* newFileNames[] = { "n1", "n2", "n3", "n4" };										// New File Names
-	static char outputPreviewText[9000000] = "Demo Output\n";										// Main Output Text
-	static char chapterText[50000] = "Demo Chapter\n";												// Split Output Text by Chapters
-	static char msgLabel[500] = "Error";
+	static char outputPreviewText[9000000] = "";										// Main Output Text
+	static char chapterText[500000] = "";												// Split Output Text by Chapters
+	static char msgLabel[500] = "";
 
 
 	// Global Style Vars
 	static int theme = 1;
+
+	if (firstTimeRun) {
+		theme = iniTheme;
+	}
+
 	ImGuiStyle& style = ImGui::GetStyle();
 	{
 		style.FrameRounding = 3.0f;
@@ -416,12 +425,15 @@ void gui::Render() noexcept
 	));
 	ImGui::PushItemWidth(190);
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
-	ImGui::Combo("##themeCombo", &theme, themeType, IM_ARRAYSIZE(themeType));
+	if (ImGui::Combo("##themeCombo", &theme, themeType, IM_ARRAYSIZE(themeType))) {
+		lance_ini::saveTheme(theme);
+	}
+	
 	ImGui::PopStyleVar();
 
 
 	// File Type Combo
-	static int currentFilePickType = 0;																			// Current File Pick Type
+	static int currentFilePickType = 0;																		// Current File Pick Type
 	const char* filePickTypes[] = { "Select Folder", "Select Files" };										// File Pick Types
 	ImGui::SetCursorPos(ImVec2(
 		xPos, yPos
@@ -433,7 +445,7 @@ void gui::Render() noexcept
 
 
 	// File Picker
-	/*static char inputLocation[2000] = "Select Input File/Folder";*/
+	/*static char inputLocation[50000] = "Select Input File/Folder";*/
 	static char inputLocation[50000] = "D:\\Z";
 	static char inputFiles[5000000] = "";
 	if (currentFilePickType == 0) {
@@ -442,7 +454,7 @@ void gui::Render() noexcept
 			lance::toShint( yPos + (lGap * 1.0) )
 		));
 		ImGui::PushItemWidth(315);
-		ImGui::InputText("##inputLocationLabel", inputLocation, IM_ARRAYSIZE(inputLocation), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##inputLocationLabel1", inputLocation, IM_ARRAYSIZE(inputLocation), ImGuiInputTextFlags_ReadOnly);
 		ImGui::SameLine();
 		ImGui::SetCursorPos(ImVec2(
 			lance::toShint( 335.0 ),
@@ -455,6 +467,13 @@ void gui::Render() noexcept
 					throw "Invalid Path";
 				}
 				strcpy_s(inputLocation, res);
+				// Adding names to old files list
+				/*vector<string> fileNames = lance::getFileNames(inputLocation + std::string(""));
+				static int index = 0;
+				for (auto& chapterPath : fileNames) {
+					oldFileNames[index] = chapterPath.c_str();
+					index++;
+				}*/
 			}
 			catch (...) {
 				strcpy_s(msgLabel, "Error : Invalid Input Path");
@@ -468,7 +487,7 @@ void gui::Render() noexcept
 			lance::toShint( yPos + (lGap * 1.0) )
 		));
 		ImGui::PushItemWidth(315);
-		ImGui::InputText("##inputLocationLabel", inputLocation, IM_ARRAYSIZE(inputLocation), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputText("##inputLocationLabel2", inputFiles, IM_ARRAYSIZE(inputFiles), ImGuiInputTextFlags_ReadOnly);
 		ImGui::SameLine();
 		ImGui::SetCursorPos(ImVec2(
 			lance::toShint( 335.0 ),
@@ -478,7 +497,7 @@ void gui::Render() noexcept
 			try {
 				auto res = tinyfd_openFileDialog("Pick Input Files", NULL, 0, NULL, NULL, 1);
 				if (res == NULL) {
-					throw "Invalid Path";
+					throw "Invalid Selections";
 				}
 				strcpy_s(inputFiles, res);
 			}
@@ -490,8 +509,8 @@ void gui::Render() noexcept
 
 
 	// Output Picker
-	/*static char outputLocation[2000] = "Select Output Folder";*/
-	static char outputLocation[2000] = "D:\\Z";
+	/*static char outputLocation[50000] = "Select Output Folder";*/
+	static char outputLocation[50000] = "D:\\Z";
 	ImGui::SetCursorPos(ImVec2(xPos, yPos + (lGap * 2.0)));
 	ImGui::PushItemWidth(315);
 	ImGui::InputText("##outputLocationLabel", outputLocation, IM_ARRAYSIZE(outputLocation), ImGuiInputTextFlags_ReadOnly);
@@ -620,27 +639,32 @@ void gui::Render() noexcept
 	// Preview Button
 	ImGui::SetCursorPos(ImVec2(xPos, yPos + (lGap * 16.5) + 2));
 	if (ImGui::Button("Preview", ImVec2((short int)((leftLayoutWidth - 10) / 2), 25 * 2))) {
-		std::string outputPreview = "";
-		std::string seperator = "\n\n\n\n\n";
+		strcpy_s(msgLabel, "");
+		try {
+			std::string outputPreview = "";
+			std::string seperator = "\n\n\n\n\n";
 
-		vector<string> filePath;
-		if (currentFilePickType == 0) {
-			filePath = getFileNames(inputLocation);
-		}
-		else {
-			filePath = getFileNames(inputFiles + std::string(""));
-		}
-
-		for (auto& chapterPath : filePath) {
-			std::string chapter = lance::getFileContents(chapterPath);
-			if (lance::getFileSize(chapterPath) + outputPreview.length() < 9000000) {
-				outputPreview += chapter + seperator;
+			vector<string> filePath;
+			if (currentFilePickType == 0) {
+				filePath = getFileNames(inputLocation);
 			}
+			else {
+				filePath = getFileNames(inputFiles + std::string(""));
+			}
+
+			for (auto& chapterPath : filePath) {
+				std::string chapter = lance::getFileContents(chapterPath);
+				if (lance::getFileSize(chapterPath) + outputPreview.length() < 9000000) {
+					outputPreview += chapter + seperator;
+				}
+			}
+
+			strcpy_s(outputPreviewText, outputPreview.c_str());
 		}
-		
-		strcpy_s(outputPreviewText, outputPreview.c_str());
+		catch (...) {
+			strcpy_s(msgLabel, "Error : Invalid Inputs");
+		}
 	}
-	
 
 
 	// Output Button
@@ -650,46 +674,44 @@ void gui::Render() noexcept
 	));
 	if(ImGui::Button("Generate Output", ImVec2((leftLayoutWidth - 10) / 2, 25 * 2)))
 	{
-		static string time = "";
-		//long ms1 = lance::getCurrentTime('m');
-
-		vector<string> filePath;
-		if (currentFilePickType == 0) {
-			filePath = getFileNames(inputLocation);
-		}
-		else {
-			filePath = getFileNames(inputFiles + std::string(""));
-		}
-
-		std::string outputFileName = "\\_filename.txt";
-		std::ofstream outputFile(outputLocation + outputFileName, std::ios::app);
-
-		std::string seperator = "\n\n\n\n\n";
-
-		for (auto& chapterPath : filePath) {
-			if (!outputFile.fail())
-			{
-				std::string chapter = lance::getFileContents(chapterPath);
-				chapter = lance::formatChapter(
-					chapter, 
-					removeCheck,
-					removeText,
-					replaceCheck,
-					replaceText1,
-					replaceText2,
-					currentBlankLine
-				);
-				
-				outputFile << chapter << seperator;
+		strcpy_s(msgLabel, "");
+		try {
+			vector<string> filePath;
+			if (currentFilePickType == 0) {
+				filePath = getFileNames(inputLocation);
 			}
+			else {
+				filePath = getFileNames(inputFiles + std::string(""));
+			}
+
+			std::string outputFileName = "\\_filename.txt";
+			std::ofstream outputFile(outputLocation + outputFileName, std::ios::app);
+
+			std::string seperator = "\n\n\n\n\n";
+
+			for (auto& chapterPath : filePath) {
+				if (!outputFile.fail())
+				{
+					std::string chapter = lance::getFileContents(chapterPath);
+					chapter = lance::formatChapter(
+						chapter,
+						removeCheck,
+						removeText,
+						replaceCheck,
+						replaceText1,
+						replaceText2,
+						currentBlankLine
+					);
+
+					outputFile << chapter << seperator;
+				}
+			}
+
+			outputFile.close();
 		}
-
-		outputFile.close();
-
-
-		//long ms2 = lance::getCurrentTime('m');
-		//time = time + to_string(ms2 - ms1) + "\n";
-		//strcpy_s(outputPreviewText, time.c_str());
+		catch (...) {
+			strcpy_s(msgLabel, "Error : Invalid Inputs");
+		}
 	}
 
 
@@ -819,6 +841,12 @@ void gui::Render() noexcept
 			ImGui::EndTabItem();
 		}
 
+		// Operations Tab
+		if (ImGui::BeginTabItem("Extra Operations")) {
+			ImGui::EndTabItem();
+		}
+
+
 		// Stat Tab
 		if (ImGui::BeginTabItem("Stats")) {
 			ImGui::EndTabItem();
@@ -839,7 +867,7 @@ void gui::Render() noexcept
 
 	// Progress Bar
 	static float progress = 0.0f, progress_dir = 1.0f;
-	if (false)
+	if (true)
 	{
 		progress += progress_dir * 0.4f * ImGui::GetIO().DeltaTime;
 		if (progress >= +1.1f) { progress = +1.1f; progress_dir *= -1.0f; }
@@ -927,6 +955,7 @@ void gui::Render() noexcept
 		style.Colors[ImGuiCol_Border] = ImColor(110, 110, 128, 128);
 	}
 
+	firstTimeRun = false;
 
 	// Code Ends-----------------------------------------------------------------------------------------------------------------------|
 	ImGui::End();
@@ -952,7 +981,6 @@ vector<string> lance::getFileNames(char path[]) {
 
 	return files;
 }
-
 vector<string> lance::getFileNames(string inputFiles) {
 	vector<string> files;
 	string del = "|";
@@ -966,11 +994,9 @@ vector<string> lance::getFileNames(string inputFiles) {
 
 	return files;
 }
-
 long long lance::getFileSize(string path) {
 	return std::filesystem::file_size(path);
 };
-
 string lance::getFileContents(string path) {
 	ifstream fs(path);
 	fs.seekg(0, std::ios::end);
@@ -1019,14 +1045,12 @@ std::string lance::fRemoveText(std::string str, bool option, char remove[]) {
 	}
 	return str;
 }
-
 std::string lance::fReplaceText(std::string  str, bool option, char replaceText1[], char replaceText2[]) {
 	if (option == true) {
 		str = std::regex_replace(str, std::regex(replaceText1), replaceText2);
 	}
 	return str;
 }
-
 std::string lance::fRemoveLines(std::string str, int option) {
 	if (option == 1) {
 		return lance::removeExtraEmptyLines(str);
@@ -1063,4 +1087,24 @@ short int lance::toShint(double x)
 float lance::toFloat(double x) 
 {
 	return (float)(x);
+}
+
+
+// Lance Ini Functions
+void lance_ini::saveTheme(int theme) {
+	json j =
+	{
+		{"theme", theme},
+	};
+	std::ofstream file("./Lance.json");
+	file << j;
+}
+
+int lance_ini::initializeSettings() {
+	std::ifstream file("Lance.json");
+	if (file.good()) {
+		json data = json::parse(file);
+		return data["theme"];
+	}
+	return 0;
 }

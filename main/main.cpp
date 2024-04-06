@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "lance_ini.h"
 
 #include <thread>
 
@@ -12,11 +13,14 @@ int __stdcall wWinMain(
 	gui::CreateHWindow("Lance");
 	gui::CreateDevice();
 	gui::CreateImGui();
+
+	static int iniTheme = -1;
+	iniTheme = lance_ini::initializeSettings();
 	
 	while (gui::isRunning)
 	{
 		gui::BeginRender();
-		gui::Render();
+		gui::Render(iniTheme);
 		gui::EndRender();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(4));
