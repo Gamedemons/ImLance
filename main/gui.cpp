@@ -571,6 +571,12 @@ void gui::Render(int iniTheme) noexcept
 	static short int rnPosX = 15;
 	static short int rnWidth = 340;
 
+	static char renamerText1[1000] = "";
+	static char renamerText2[1000] = "";
+	static char renamerText3[1000] = "";
+	static char renamerText4[1000] = "";
+	static char renamerText5[1000] = "";
+
 	static bool renameCheck = false;
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 8.0) + 6));
 	ImGui::Checkbox("Renamer", &renameCheck);
@@ -579,23 +585,23 @@ void gui::Render(int iniTheme) noexcept
 	}
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 9.0) + 6));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput1", "Prefix", replaceText2, IM_ARRAYSIZE(replaceText2));
+	ImGui::InputTextWithHint("##renameInput1", "Prefix", renamerText1, IM_ARRAYSIZE(renamerText1));
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 10.0) + 7));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput2", "Suffix", replaceText2, IM_ARRAYSIZE(replaceText2));
+	ImGui::InputTextWithHint("##renameInput2", "Suffix", renamerText2, IM_ARRAYSIZE(renamerText2));
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 11.0) + 8));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput3", "Regex", replaceText2, IM_ARRAYSIZE(replaceText2));
+	ImGui::InputTextWithHint("##renameInput3", "Regex", renamerText3, IM_ARRAYSIZE(renamerText3));
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 12.0) + 9));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput4", "Numbering", replaceText2, IM_ARRAYSIZE(replaceText2));
+	ImGui::InputTextWithHint("##renameInput4", "Numbering", renamerText4, IM_ARRAYSIZE(renamerText4));
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 13.0) + 10));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput5", "Title", replaceText2, IM_ARRAYSIZE(replaceText2));
+	ImGui::InputTextWithHint("##renameInput5", "Title", renamerText5, IM_ARRAYSIZE(renamerText5));
 	if (!renameCheck) {
 		ImGui::EndDisabled();
 	}
