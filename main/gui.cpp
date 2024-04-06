@@ -365,11 +365,12 @@ void gui::Render(int iniTheme) noexcept
 
 
 	// Task Completion Label - 6 for half of 24 (button height)
+	static long taskCompletionTime = 0;
 	ImGui::SetCursorPos(ImVec2(
 		lance::toShint( WIDTH - 200.0 ),
 		30 + 12
 	));
-	ImGui::Text("CT : %d ms", 0);
+	ImGui::Text("CT : %d ms", taskCompletionTime);
 
 
 	// Style Editor
@@ -675,6 +676,9 @@ void gui::Render(int iniTheme) noexcept
 	if(ImGui::Button("Generate Output", ImVec2((leftLayoutWidth - 10) / 2, 25 * 2)))
 	{
 		strcpy_s(msgLabel, "");
+		string time = "";
+		long ms1 = lance::getCurrentTime('m');
+
 		try {
 			vector<string> filePath;
 			if (currentFilePickType == 0) {
@@ -712,6 +716,9 @@ void gui::Render(int iniTheme) noexcept
 		catch (...) {
 			strcpy_s(msgLabel, "Error : Invalid Inputs");
 		}
+
+		long ms2 = lance::getCurrentTime('m');
+		taskCompletionTime = ms2 - ms1;
 	}
 
 
