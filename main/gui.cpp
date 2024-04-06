@@ -273,8 +273,8 @@ void gui::Render(int iniTheme) noexcept
 	static short int lGap = 35;
 	static short int leftLayoutWidth = 350;
 
-	const static char* oldFileNames[] = { "AAAA1", "BBBB2", "CCCC3", "DDDD4" };							// Old File Names
-	const static char* newFileNames[] = { "n1", "n2", "n3", "n4" };										// New File Names
+	const static char* oldFileNames[] = { "AAAA1", "BBBB2", "CCCC3", "DDDD4" };			// Old File Names
+	const static char* newFileNames[] = { "n1", "n2", "n3", "n4" };						// New File Names
 	static char outputPreviewText[9000000] = "";										// Main Output Text
 	static char chapterText[500000] = "";												// Split Output Text by Chapters
 	static char msgLabel[500] = "";
