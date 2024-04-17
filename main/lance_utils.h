@@ -37,9 +37,11 @@ namespace lance
 	std::string removeEmptySpaces(std::string str);
 
 	// Type Conversions
-
 	short int toShint(short int x);
 	short int toShint(double x);
 	float toFloat(double x);
 
+
+	//Console
+	static void ShowExampleAppConsole(bool* p_open);
 }
