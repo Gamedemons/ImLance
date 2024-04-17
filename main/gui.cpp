@@ -8,6 +8,9 @@
 #include <string>
 #include <regex>
 #include <filesystem>
+#include <shlobj.h>
+#include <windows.h>
+#include <sys/stat.h>
 #include <fstream>
 #include <chrono>
 #include "lance_utils.h"
@@ -267,14 +270,15 @@ void gui::Render(int iniTheme) noexcept
 	static bool show_app_settings = false;
 	static bool show_stat = false;
 	static bool aura_breathing = false;
+	static bool progressbar_anim = false;
 
 	static short int xPos = 10;
 	static short int yPos = 60;
 	static short int lGap = 35;
 	static short int leftLayoutWidth = 350;
-
-	const static char* oldFileNames[] = { "AAAA1", "BBBB2", "CCCC3", "DDDD4" };			// Old File Names
-	const static char* newFileNames[] = { "n1", "n2", "n3", "n4" };						// New File Names
+					
+	static std::vector<std::string> oldFileNames;										// Old File Names
+	static std::vector<std::string> newFileNames;										// New File Names
 	static char outputPreviewText[9000000] = "";										// Main Output Text
 	static char chapterText[500000] = "";												// Split Output Text by Chapters
 	static char msgLabel[500] = "";
@@ -414,6 +418,11 @@ void gui::Render(int iniTheme) noexcept
 		ImGui::Checkbox("Aura Breathing", &aura_breathing);
 		ImGui::PopID();
 
+		ImGui::SetCursorPos(ImVec2(xPos, 35 * 2));
+		ImGui::PushID("progressbar_anim");
+		ImGui::Checkbox("Enable Progress Bar Animation", &progressbar_anim);
+		ImGui::PopID();
+
 		ImGui::End();
 	}
 
@@ -429,7 +438,7 @@ void gui::Render(int iniTheme) noexcept
 	if (ImGui::Combo("##themeCombo", &theme, themeType, IM_ARRAYSIZE(themeType))) {
 		lance_ini::saveTheme(theme);
 	}
-	
+
 	ImGui::PopStyleVar();
 
 
@@ -659,7 +668,9 @@ void gui::Render(int iniTheme) noexcept
 				filePath = getFileNames(inputFiles + std::string(""));
 			}
 
+			oldFileNames.clear();
 			for (auto& chapterPath : filePath) {
+				oldFileNames.push_back(chapterPath);
 				std::string chapter = lance::getFileContents(chapterPath);
 				if (lance::getFileSize(chapterPath) + outputPreview.length() < 9000000) {
 					outputPreview += chapter + seperator;
@@ -698,8 +709,10 @@ void gui::Render(int iniTheme) noexcept
 			std::ofstream outputFile(outputLocation + outputFileName, std::ios::app);
 
 			std::string seperator = "\n\n\n\n\n";
+			oldFileNames.clear();
 
 			for (auto& chapterPath : filePath) {
+				oldFileNames.push_back(chapterPath);
 				if (!outputFile.fail())
 				{
 					std::string chapter = lance::getFileContents(chapterPath);
@@ -736,8 +749,13 @@ void gui::Render(int iniTheme) noexcept
 	ImGui::SetCursorPos(ImVec2(menuPosX, yPos));
 	if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_None))
 	{
+		// Operations Tab
+		if (ImGui::BeginTabItem("Configuration")) {
+			ImGui::EndTabItem();
+		}
+
 		// Output Tab
-		if (ImGui::BeginTabItem("Output"))
+		if (ImGui::BeginTabItem("Preview"))
 		{
 			ImGui::SetCursorPosX(menuPosX);
 			static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput;
@@ -755,7 +773,7 @@ void gui::Render(int iniTheme) noexcept
 
 
 			// Listbox Labels
-			static char chNumLabel[20] = "Chapter Number";
+			static char chNumLabel[20] = "Chapters";
 			ImGui::SetCursorPosX(menuPosX);
 			ImGui::PushItemWidth(chapterBoxWidth);
 			ImGui::InputText("##chpaterNumberLabel", chNumLabel, IM_ARRAYSIZE(chNumLabel), ImGuiInputTextFlags_ReadOnly);
@@ -767,35 +785,46 @@ void gui::Render(int iniTheme) noexcept
 
 
 			// Listbox and Textarea
-			static short int current_chapter_idx = 0;							// Currently Selected Chapter
-
+			static int oldChapterName_Index = 0;						// Currently Selected Chapter
 			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + tabGap));
 			if (ImGui::BeginListBox("##ChapterNumberListBox", ImVec2(chapterBoxWidth, elemHeight)))
 			{
-				for (int n = 0; n < IM_ARRAYSIZE(oldFileNames); n++)
-				{
-					const bool is_selected = (current_chapter_idx == n);
-					if (ImGui::Selectable(oldFileNames[n], is_selected))
-						current_chapter_idx = n;
+				int n = 0;
+				for (string item : oldFileNames) {
+					const bool is_selected = (oldChapterName_Index == n);
+					if (ImGui::Selectable(oldFileNames[n].c_str(), is_selected)) {
+						oldChapterName_Index = n;
+						if (oldFileNames.size() > 0) {
+							string selectedIndexPath = oldFileNames.at(oldChapterName_Index);
+							string contents = lance::getFileContents(selectedIndexPath);
+							strcpy_s(chapterText, contents.c_str());
+						}
+					}
 
-					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-					if (is_selected)
+					if (is_selected) {
 						ImGui::SetItemDefaultFocus();
+						if (oldFileNames.size() > 0) {
+							string selectedIndexPath = oldFileNames.at(oldChapterName_Index);
+							string contents = lance::getFileContents(selectedIndexPath);
+							strcpy_s(chapterText, contents.c_str());
+						}
+					}
+						
+					n++;
 				}
 				ImGui::EndListBox();
 			}
 
 			ImGui::SetCursorPos(ImVec2(chapterAreaWidth, yPos + tabGap));
-
-			static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput;
+			static ImGuiInputTextFlags flags = ImGuiInputTextFlags_ReadOnly;
 			ImGui::InputTextMultiline("##source", chapterText, IM_ARRAYSIZE(chapterText), ImVec2((short int)(WIDTH - chapterAreaWidth), elemHeight), flags);
 
 			ImGui::PopStyleVar();
 			ImGui::EndTabItem();
 		}
 
-		// Chapter Info
-		if (ImGui::BeginTabItem("Chapter Info")) 
+		// Chapter Info Tab
+		if (ImGui::BeginTabItem("Chapter Info"))
 		{
 			ImGui::EndTabItem();
 		}
@@ -824,28 +853,34 @@ void gui::Render(int iniTheme) noexcept
 			ImGui::SetCursorPos(ImVec2(menuPosX, (short int)(yPos + tabGap)));
 			if (ImGui::BeginListBox("##OldFileListBox", ImVec2(elemWidth, elemHeight)))
 			{
-				for (int n = 0; n < IM_ARRAYSIZE(oldFileNames); n++)
-				{
+				int n = 0;
+				for (string item : oldFileNames) {
 					const bool is_selected = (current_filename_idx == n);
-					if (ImGui::Selectable(oldFileNames[n], is_selected))
+					if (ImGui::Selectable(oldFileNames[n].c_str(), is_selected))
 						current_filename_idx = n;
 
-					if (is_selected)
+					if (is_selected) {
 						ImGui::SetItemDefaultFocus();
+					}
+
+					n++;
 				}
 				ImGui::EndListBox();
 			}
 			ImGui::SetCursorPos(ImVec2((short int)(menuPosX + elemWidth + menuGap), (short int)(yPos + tabGap)));
 			if (ImGui::BeginListBox("##NewFileListBox", ImVec2(elemWidth, elemHeight)))
 			{
-				for (int n = 0; n < IM_ARRAYSIZE(newFileNames); n++)
-				{
+				int n = 0;
+				for (string item : newFileNames) {
 					const bool is_selected = (current_filename_idx == n);
-					if (ImGui::Selectable(newFileNames[n], is_selected))
+					if (ImGui::Selectable(newFileNames[n].c_str(), is_selected))
 						current_filename_idx = n;
 
-					if (is_selected)
+					if (is_selected) {
 						ImGui::SetItemDefaultFocus();
+					}
+
+					n++;
 				}
 				ImGui::EndListBox();
 			}
@@ -853,12 +888,6 @@ void gui::Render(int iniTheme) noexcept
 			ImGui::PopStyleVar();
 			ImGui::EndTabItem();
 		}
-
-		// Operations Tab
-		if (ImGui::BeginTabItem("Extra Operations")) {
-			ImGui::EndTabItem();
-		}
-
 
 		// Stat Tab
 		if (ImGui::BeginTabItem("Stats")) {
@@ -880,7 +909,7 @@ void gui::Render(int iniTheme) noexcept
 
 	// Progress Bar
 	static float progress = 0.0f, progress_dir = 1.0f;
-	if (true)
+	if (progressbar_anim)
 	{
 		progress += progress_dir * 0.4f * ImGui::GetIO().DeltaTime;
 		if (progress >= +1.1f) { progress = +1.1f; progress_dir *= -1.0f; }
@@ -917,7 +946,7 @@ void gui::Render(int iniTheme) noexcept
 				frameColor += p_dir;
 			}
 		}
-		
+
 		static HsvColor hsv;
 		hsv.h = (int)frameColor;
 		hsv.s = 255;
@@ -1027,21 +1056,21 @@ long lance::getCurrentTime(char type) {
 	);
 
 	if (type == 's') {
-		return (long)(time.count()/1000);
+		return (long)(time.count() / 1000);
 	}
 
 	return (long)(time.count());
 }
 
 std::string lance::formatChapter(
-	std::string str, 
+	std::string str,
 	bool removeCheck,
-	char removeText[], 
+	char removeText[],
 	bool replaceCheck,
-	char replaceText1[], 
-	char replaceText2[], 
+	char replaceText1[],
+	char replaceText2[],
 	int blankLineOption
-) 
+)
 {
 	str = lance::fRemoveText(str, removeCheck, removeText);
 	str = lance::fReplaceText(str, replaceCheck, replaceText1, replaceText2);
@@ -1089,7 +1118,7 @@ std::string lance::removeEmptySpaces(std::string str) {
 
 
 // Type Conversions
-short int lance::toShint(short int x) 
+short int lance::toShint(short int x)
 {
 	return (short int)(x);
 }
@@ -1097,7 +1126,7 @@ short int lance::toShint(double x)
 {
 	return (short int)(x);
 }
-float lance::toFloat(double x) 
+float lance::toFloat(double x)
 {
 	return (float)(x);
 }
@@ -1109,15 +1138,53 @@ void lance_ini::saveTheme(int theme) {
 	{
 		{"theme", theme},
 	};
-	std::ofstream file("./Lance.json");
-	file << j;
+
+	CHAR my_documents[MAX_PATH];
+	HRESULT result = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_documents);
+	string folderPath = my_documents + std::string("\\Lance");
+	struct stat sb;
+
+	if (stat(folderPath.c_str(), &sb) != 0) {
+		std::filesystem::create_directory(folderPath);
+	}
+
+	if (result == S_OK) {
+		string path = folderPath + std::string("\\Lance.json");
+		std::ofstream file(path);
+		file << j;
+	}
+	else {
+		string path = "./Lance.json";
+		std::ofstream file(path);
+		file << j;
+	}
 }
 
 int lance_ini::initializeSettings() {
-	std::ifstream file("Lance.json");
-	if (file.good()) {
-		json data = json::parse(file);
-		return data["theme"];
+	CHAR my_documents[MAX_PATH];
+	HRESULT result = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_documents);
+	string folderPath = my_documents + std::string("\\Lance");
+	struct stat sb;
+
+	if (stat(folderPath.c_str(), &sb) != 0) {
+		std::filesystem::create_directory(folderPath);
 	}
-	return 0;
+
+	if (result == S_OK) {
+		string path = my_documents + std::string("\\Lance\\Lance.json");
+		std::ifstream file(path);
+		if (file.good()) {
+			json data = json::parse(file);
+			return data["theme"];
+		}
+		return 0;
+	}
+	else {
+		std::ifstream file("Lance.json");
+		if (file.good()) {
+			json data = json::parse(file);
+			return data["theme"];
+		}
+		return 0;
+	}
 }
