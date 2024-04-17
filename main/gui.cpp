@@ -276,6 +276,7 @@ void gui::Render(int iniTheme) noexcept
 	static short int lGap = 35;
 	static short int leftLayoutWidth = 350;
 					
+	static std::vector<std::string> realFileNames;
 	static std::vector<std::string> oldFileNames;										// Old File Names
 	static std::vector<std::string> newFileNames;										// New File Names
 	static char outputPreviewText[9000000] = "";										// Main Output Text
@@ -672,9 +673,11 @@ void gui::Render(int iniTheme) noexcept
 				filePath = lance::getFileNames(inputFiles + std::string(""));
 			}
 
+			realFileNames.clear();
 			oldFileNames.clear();
 			newFileNames.clear();
 			for (auto& chapterPath : filePath) {
+				realFileNames.push_back(chapterPath);
 				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
 				newFileNames.push_back(lance::fRenameFile(
 					renameCheck,
@@ -725,10 +728,12 @@ void gui::Render(int iniTheme) noexcept
 			std::ofstream outputFile(outputLocation + outputFileName, std::ios::app);
 
 			std::string seperator = "\n\n\n\n\n";
+			realFileNames.clear();
 			oldFileNames.clear();
 			newFileNames.clear();
 
 			for (auto& chapterPath : filePath) {
+				realFileNames.push_back(chapterPath);
 				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
 				newFileNames.push_back(lance::fRenameFile(
 					renameCheck,
@@ -818,12 +823,12 @@ void gui::Render(int iniTheme) noexcept
 			if (ImGui::BeginListBox("##ChapterNumberListBox", ImVec2(chapterBoxWidth, elemHeight)))
 			{
 				int n = 0;
-				for (string item : oldFileNames) {
+				for (string item : realFileNames) {
 					const bool is_selected = (oldChapterName_Index == n);
-					if (ImGui::Selectable(oldFileNames[n].c_str(), is_selected)) {
+					if (ImGui::Selectable(realFileNames[n].c_str(), is_selected)) {
 						oldChapterName_Index = n;
-						if (oldFileNames.size() > 0) {
-							string selectedIndexPath = oldFileNames.at(oldChapterName_Index);
+						if (realFileNames.size() > 0) {
+							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
 							if (lance::getFileSize(selectedIndexPath) < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
@@ -837,8 +842,8 @@ void gui::Render(int iniTheme) noexcept
 
 					if (is_selected) {
 						ImGui::SetItemDefaultFocus();
-						if (oldFileNames.size() > 0) {
-							string selectedIndexPath = oldFileNames.at(oldChapterName_Index);
+						if (realFileNames.size() > 0) {
+							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
 							if (lance::getFileSize(selectedIndexPath) < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
