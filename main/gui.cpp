@@ -269,7 +269,7 @@ void gui::Render(int iniTheme) noexcept
 	static bool show_stat = false;
 	static bool aura_breathing = false;
 	static bool progressbar_anim = false;
-	static bool show_path_for_chaptername_previews = true;
+	static bool show_path_for_chaptername_previews = false;
 
 	static short int xPos = 10;
 	static short int yPos = 60;
@@ -283,6 +283,13 @@ void gui::Render(int iniTheme) noexcept
 	static char chapterText[500000] = "";												// Split Output Text by Chapters
 	static char msgLabel[500] = "";
 
+	static long stat_cumulative_file_size = 0;
+	static int stat_selected_chapter_index = 0;
+	static std::string stat_selected_chapter_name = "";
+	static std::string stat_selected_chapter_firstline = "";
+	static long stat_selected_chapter_size = 0;
+	static long stat_selected_chapter_word_count = 0;
+	static long stat_selected_chapter_line_count = 0;
 
 	// Global Style Vars
 	static int theme = 1;
@@ -676,6 +683,7 @@ void gui::Render(int iniTheme) noexcept
 			realFileNames.clear();
 			oldFileNames.clear();
 			newFileNames.clear();
+			stat_cumulative_file_size = 0;
 			for (auto& chapterPath : filePath) {
 				realFileNames.push_back(chapterPath);
 				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
@@ -691,7 +699,9 @@ void gui::Render(int iniTheme) noexcept
 				));
 
 				std::string chapter = lance::getFileContents(chapterPath);
-				if (lance::getFileSize(chapterPath) + outputPreview.length() < 9000000) {
+				long long chapter_size = lance::getFileSize(chapterPath);
+				stat_cumulative_file_size += chapter_size;
+				if (chapter_size + outputPreview.length() < 9000000) {
 					outputPreview += chapter + seperator;
 				}
 			}
@@ -827,9 +837,13 @@ void gui::Render(int iniTheme) noexcept
 					const bool is_selected = (oldChapterName_Index == n);
 					if (ImGui::Selectable(realFileNames[n].c_str(), is_selected)) {
 						oldChapterName_Index = n;
+						stat_selected_chapter_index = n;
 						if (realFileNames.size() > 0) {
 							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
-							if (lance::getFileSize(selectedIndexPath) < 490000) {
+							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
+							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
+							stat_selected_chapter_size = selected_chapter_size;
+							if (selected_chapter_size < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
 							}
@@ -844,7 +858,10 @@ void gui::Render(int iniTheme) noexcept
 						ImGui::SetItemDefaultFocus();
 						if (realFileNames.size() > 0) {
 							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
-							if (lance::getFileSize(selectedIndexPath) < 490000) {
+							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
+							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
+							stat_selected_chapter_size = selected_chapter_size;
+							if (selected_chapter_size < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
 							}
@@ -871,6 +888,45 @@ void gui::Render(int iniTheme) noexcept
 		// Chapter Info Tab
 		if (ImGui::BeginTabItem("Chapter Info"))
 		{
+			ImGui::SetCursorPosX(menuPosX);
+			ImGui::Text("Input");
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 45));
+			if (currentFilePickType == 0) {
+				ImGui::InputTextMultiline("##stat_input", inputLocation, IM_ARRAYSIZE(inputLocation), ImVec2(905, 25), ImGuiInputTextFlags_ReadOnly);
+			}
+			else {
+				ImGui::InputTextMultiline("##stat_input", inputFiles, IM_ARRAYSIZE(inputFiles), ImVec2(905, 25), ImGuiInputTextFlags_ReadOnly);
+			}
+			
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30));
+			ImGui::Text("Output Directory");
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 45));
+			ImGui::InputTextMultiline("##stat_output", outputLocation, IM_ARRAYSIZE(outputLocation), ImVec2(905, 25), ImGuiInputTextFlags_ReadOnly);
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 3));
+			ImGui::Text("Total File Count : %d", realFileNames.size());
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 4));
+			ImGui::Text("Cumulative File Size : %ld bytes", stat_cumulative_file_size);
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 5));
+			ImGui::Text("Currently Selected Chapter Index : %d", stat_selected_chapter_index);
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 6));
+			ImGui::Text("Currently Selected Chapter Name : %s", stat_selected_chapter_name.c_str());
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 7));
+			ImGui::Text("Currently Selected Chapter First Line : %s", stat_selected_chapter_firstline.c_str());
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 8));
+			ImGui::Text("Currently Selected Chapter Size : %ld bytes", stat_selected_chapter_size);
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 9));
+			ImGui::Text("Currently Selected Chapter Word Count : %ld", stat_selected_chapter_word_count);
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 10));
+			ImGui::Text("Currently Selected Chapter Line Count : %ld", stat_selected_chapter_line_count);
+
 			ImGui::EndTabItem();
 		}
 
@@ -931,11 +987,6 @@ void gui::Render(int iniTheme) noexcept
 			}
 
 			ImGui::PopStyleVar();
-			ImGui::EndTabItem();
-		}
-
-		// Stat Tab
-		if (ImGui::BeginTabItem("Stats")) {
 			ImGui::EndTabItem();
 		}
 
