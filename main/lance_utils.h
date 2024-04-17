@@ -29,6 +29,20 @@ namespace lance
 	// fReplaceText
 	std::string fReplaceText(std::string str, bool option, char replaceText1[], char replaceText2[]);
 
+	// fRenameFile
+	std::string fRenameFile(
+		bool renameCheck,
+		std::string str,
+		bool pathVisible,
+		char renamerText1[],
+		char renamerText2[],
+		char renamerText3[],
+		char renamerText4[],
+		char renamerText5[]
+	);
+
+	std::string extractOldName(std::string str, bool pathVisible);
+
 	// fRemoveLines
 	std::string fRemoveLines(std::string str, int option);
 

@@ -17,6 +17,7 @@
 #include "lance_ini.h"
 
 using std::filesystem::directory_iterator;
+using std::filesystem::path;
 using namespace std::chrono;
 using std::string;
 using std::to_string;
@@ -24,10 +25,6 @@ using std::vector;
 using std::ifstream;
 using std::ofstream;
 using json = nlohmann::json;
-using lance::getFileNames;
-using lance::getFileContents;
-using lance::getCurrentTime;
-using lance::formatChapter;
 
 #define IM_CLAMP(V, MN, MX)     ((V) < (MN) ? (MN) : (V) > (MX) ? (MX) : (V))
 #define IM_NEWLINE  "\n"
@@ -272,6 +269,7 @@ void gui::Render(int iniTheme) noexcept
 	static bool show_stat = false;
 	static bool aura_breathing = false;
 	static bool progressbar_anim = false;
+	static bool show_path_for_chaptername_previews = true;
 
 	static short int xPos = 10;
 	static short int yPos = 60;
@@ -422,6 +420,11 @@ void gui::Render(int iniTheme) noexcept
 		ImGui::SetCursorPos(ImVec2(xPos, 35 * 2));
 		ImGui::PushID("progressbar_anim");
 		ImGui::Checkbox("Enable Progress Bar Animation", &progressbar_anim);
+		ImGui::PopID();
+
+		ImGui::SetCursorPos(ImVec2(xPos, 35 * 3));
+		ImGui::PushID("show_path_for_chaptername_previews");
+		ImGui::Checkbox("Show Paths for File Name Previews", &show_path_for_chaptername_previews);
 		ImGui::PopID();
 
 		ImGui::End();
@@ -607,11 +610,11 @@ void gui::Render(int iniTheme) noexcept
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 12.0) + 9));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput4", "Numbering", renamerText4, IM_ARRAYSIZE(renamerText4));
+	ImGui::InputTextWithHint("##renameInput4", "Numbering - index:start:increment:seperator", renamerText4, IM_ARRAYSIZE(renamerText4));
 
 	ImGui::SetCursorPos(ImVec2(rnPosX, yPos + (lGap * 13.0) + 10));
 	ImGui::PushItemWidth(rnWidth);
-	ImGui::InputTextWithHint("##renameInput5", "Title", renamerText5, IM_ARRAYSIZE(renamerText5));
+	ImGui::InputTextWithHint("##renameInput5", "Title - title:mode[prefix,fixed,suffix]", renamerText5, IM_ARRAYSIZE(renamerText5));
 	if (!renameCheck) {
 		ImGui::EndDisabled();
 	}
@@ -663,15 +666,27 @@ void gui::Render(int iniTheme) noexcept
 
 			vector<string> filePath;
 			if (currentFilePickType == 0) {
-				filePath = getFileNames(inputLocation);
+				filePath = lance::getFileNames(inputLocation);
 			}
 			else {
-				filePath = getFileNames(inputFiles + std::string(""));
+				filePath = lance::getFileNames(inputFiles + std::string(""));
 			}
 
 			oldFileNames.clear();
+			newFileNames.clear();
 			for (auto& chapterPath : filePath) {
-				oldFileNames.push_back(chapterPath);
+				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
+				newFileNames.push_back(lance::fRenameFile(
+					renameCheck,
+					chapterPath,
+					show_path_for_chaptername_previews,
+					renamerText1,
+					renamerText2,
+					renamerText3,
+					renamerText4,
+					renamerText5
+				));
+
 				std::string chapter = lance::getFileContents(chapterPath);
 				if (lance::getFileSize(chapterPath) + outputPreview.length() < 9000000) {
 					outputPreview += chapter + seperator;
@@ -700,10 +715,10 @@ void gui::Render(int iniTheme) noexcept
 		try {
 			vector<string> filePath;
 			if (currentFilePickType == 0) {
-				filePath = getFileNames(inputLocation);
+				filePath = lance::getFileNames(inputLocation);
 			}
 			else {
-				filePath = getFileNames(inputFiles + std::string(""));
+				filePath = lance::getFileNames(inputFiles + std::string(""));
 			}
 
 			std::string outputFileName = "\\_filename.txt";
@@ -711,9 +726,21 @@ void gui::Render(int iniTheme) noexcept
 
 			std::string seperator = "\n\n\n\n\n";
 			oldFileNames.clear();
+			newFileNames.clear();
 
 			for (auto& chapterPath : filePath) {
-				oldFileNames.push_back(chapterPath);
+				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
+				newFileNames.push_back(lance::fRenameFile(
+					renameCheck,
+					chapterPath,
+					show_path_for_chaptername_previews,
+					renamerText1,
+					renamerText2,
+					renamerText3,
+					renamerText4,
+					renamerText5
+				));
+
 				if (!outputFile.fail())
 				{
 					std::string chapter = lance::getFileContents(chapterPath);
@@ -915,27 +942,6 @@ void gui::Render(int iniTheme) noexcept
 
 		// Help Tab
 		if (ImGui::BeginTabItem("Help")) {
-			
-
-
-
-
-
-			if (ImGui::SmallButton("Add Debug Text")) 
-			{ 
-				
-				AddLog("some more text"); 
-				AddLog("display very important message here!"); 
-			}
-			if (ImGui::SmallButton("Add Debug Error")) 
-			{ 
-				AddLog("[error] something went wrong"); 
-			}
-
-
-
-
-
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -1128,6 +1134,30 @@ std::string lance::fReplaceText(std::string  str, bool option, char replaceText1
 	}
 	return str;
 }
+std::string lance::fRenameFile(
+	bool renameCheck,
+	std::string str,
+	bool pathVisible,
+	char renamerText1[],
+	char renamerText2[],
+	char renamerText3[],
+	char renamerText4[],
+	char renamerText5[]
+) 
+{
+	std::filesystem::path p(str);
+	if (renameCheck) 
+	{
+		string newName = std::string(renamerText1) + p.stem().string() + std::string(renamerText2) + p.extension().string();
+		if(!pathVisible) return newName;
+		string path = p.parent_path().string() + "\\";
+		return path + newName;
+	}
+
+	if (!pathVisible) return p.filename().string();
+
+	return str;
+};
 std::string lance::fRemoveLines(std::string str, int option) {
 	if (option == 1) {
 		return lance::removeExtraEmptyLines(str);
@@ -1138,6 +1168,12 @@ std::string lance::fRemoveLines(std::string str, int option) {
 	return str;
 }
 
+std::string lance::extractOldName(std::string str, bool pathVisible)
+{
+	if (pathVisible) return str;
+	std::filesystem::path p(str);
+	return p.filename().string();
+}
 std::string lance::removeExtraEmptyLines(std::string str) {
 	str = std::regex_replace(str, std::regex("[\n]+"), "");
 	return str;
@@ -1227,7 +1263,6 @@ int lance_ini::initializeSettings() {
 
 
 // Console
-
 enum ImGuiLanceFlags_
 {
 	ImGuiLanceFlags_None = 0,
