@@ -473,7 +473,7 @@ void gui::Render(int iniTheme) noexcept
 
 	// File Picker
 	/*static char inputLocation[50000] = "Select Input File/Folder";*/
-	static char inputLocation[50000] = "";
+	static char inputLocation[50000] = "D:\\Z";
 	static char inputFiles[5000000] = "";
 	if (currentFilePickType == 0) {
 		ImGui::SetCursorPos(ImVec2(
@@ -537,7 +537,7 @@ void gui::Render(int iniTheme) noexcept
 
 	// Output Picker
 	/*static char outputLocation[50000] = "Select Output Folder";*/
-	static char outputLocation[50000] = "";
+	static char outputLocation[50000] = "D:\\Z";
 	ImGui::SetCursorPos(ImVec2(xPos, yPos + (lGap * 2.0)));
 	ImGui::PushItemWidth(315);
 	ImGui::InputTextWithHint("##outputLocationLabel", "Select Output Directory", outputLocation, IM_ARRAYSIZE(outputLocation), ImGuiInputTextFlags_ReadOnly);
@@ -833,6 +833,11 @@ void gui::Render(int iniTheme) noexcept
 
 			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + 35*2));
 			ImGui::InputTextMultiline("##chapterseperator", seperator, IM_ARRAYSIZE(seperator), ImVec2(905, 60), ImGuiInputTextFlags_AllowTabInput);
+			if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enter Custom Chapter Seperator");
+
+
+			// custom regex, file tools(hasing, encoding conversation, url entity decode)
+			// text tools
 
 			ImGui::EndTabItem();
 		}
@@ -841,8 +846,7 @@ void gui::Render(int iniTheme) noexcept
 		if (ImGui::BeginTabItem("Preview"))
 		{
 			ImGui::SetCursorPosX(menuPosX);
-			static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput;
-			ImGui::InputTextMultiline("##source", outputPreviewText, IM_ARRAYSIZE(outputPreviewText), ImVec2(910, 600), flags);
+			ImGui::InputTextMultiline("##source", outputPreviewText, IM_ARRAYSIZE(outputPreviewText), ImVec2(910, 600), ImGuiInputTextFlags_ReadOnly);
 			ImGui::EndTabItem();
 		}
 
@@ -883,6 +887,8 @@ void gui::Render(int iniTheme) noexcept
 							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
 							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
 							stat_selected_chapter_size = selected_chapter_size;
+							std::ifstream ch_first_line(selectedIndexPath);
+							std::getline(ch_first_line, stat_selected_chapter_firstline);
 							if (selected_chapter_size < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
@@ -901,6 +907,8 @@ void gui::Render(int iniTheme) noexcept
 							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
 							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
 							stat_selected_chapter_size = selected_chapter_size;
+							std::ifstream ch_first_line(selectedIndexPath);
+							std::getline(ch_first_line, stat_selected_chapter_firstline);
 							if (selected_chapter_size < 490000) {
 								string contents = lance::getFileContents(selectedIndexPath);
 								strcpy_s(chapterText, contents.c_str());
@@ -962,10 +970,18 @@ void gui::Render(int iniTheme) noexcept
 			ImGui::Text("Currently Selected Chapter Size : %ld bytes", stat_selected_chapter_size);
 
 			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 9));
-			ImGui::Text("Currently Selected Chapter Word Count : %ld", stat_selected_chapter_word_count);
+			ImGui::Text("Currently Selected Chapter Word Count         : %ld", stat_selected_chapter_word_count);
+			ImGui::SetCursorPos(ImVec2(menuPosX + 265, yPos + 45 + 30 * 9));
+			if (ImGui::Button("Count##word_count", ImVec2(50, 25))) {
+				if(realFileNames.size() > 0) stat_selected_chapter_word_count = lance::getWordCount(realFileNames[stat_selected_chapter_index]);
+			}
 
 			ImGui::SetCursorPos(ImVec2(menuPosX, yPos + 50 + 30 * 10));
-			ImGui::Text("Currently Selected Chapter Line Count : %ld", stat_selected_chapter_line_count);
+			ImGui::Text("Currently Selected Chapter Line Count         : %ld", stat_selected_chapter_line_count);
+			ImGui::SetCursorPos(ImVec2(menuPosX + 265, yPos + 45 + 30 * 10));
+			if (ImGui::Button("Count##line_count", ImVec2(50, 25))) {
+				if(realFileNames.size() > 0) stat_selected_chapter_line_count = lance::getLineCount(realFileNames[stat_selected_chapter_index]);
+			}
 
 			ImGui::EndTabItem();
 		}
@@ -1038,6 +1054,51 @@ void gui::Render(int iniTheme) noexcept
 
 		// Help Tab
 		if (ImGui::BeginTabItem("Help")) {
+			char help[5000] = 
+				"SECTION 1 : Lance\n"
+				"ImLance or simply Lance is a bulk text files editor. It is made to handle and merge seperate novel chapters. \n"
+				"Merging, Text Removal, Text Replacement are its main features.\n"
+				"\n"
+				"SECTION 2 : Why I made Lance ?\n"
+				"I read a lot of webnovels and lightnovels. Each chapter within these novels is saved as a text file.\n"
+				"Now I faced two major problems.\n"
+				"Some novels can have as many as 4000 chapters, which means 4000 individual text files. \n"
+				"Manually Opening and Closing each chapter is already very cumbersome, not to mention poor Portability and Management Issues.\n"
+				"The second problem was that there were 3 blank spaces between each line, which reduced readability.\n"
+				"So I made lance to fix similar issues.\n"
+				"\n"
+				"SECTION 3 : What Lance can do ?\n"
+				"Lance can remove or replace specified words from all input text files.\n"
+				"It can rename all input text files based on custom parameters.\n"
+				"It can remove extra blank spaces from all input text files.\n"
+				"It can merge all input text files into one file.\n"
+				"It can output files in Markdown format for easier readability and chapter indexing.\n"
+				"It can indent, trim, comment, convert case, remove duplicate lines, sort lines, reverse line order and much more !\n"
+				"\n"
+				"SECTION 4 : Lance Basics\n"
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				""
+				"";
+
+			ImGui::SetCursorPosX(menuPosX);
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(255, 255, 255, 0));
+			ImGui::InputTextMultiline("##helpTab", help, IM_ARRAYSIZE(help), ImVec2(910, 600), ImGuiInputTextFlags_ReadOnly);
+			ImGui::PopStyleColor();
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -1198,6 +1259,38 @@ long lance::getCurrentTime(char type) {
 
 	return (long)(time.count());
 }
+
+long lance::getWordCount(std::string str) 
+{
+	long wordCount = 0;
+	std::ifstream inputFile(str);
+
+	if (inputFile.is_open()) {
+		std::string line;         // Declaring a string variable to store each line of text
+
+		while (std::getline(inputFile, line)) {  // Loop through each line in the file
+			std::stringstream ss(line);  // Create a stringstream object with the current line content
+			std::string word;  // Declare a string variable to store each word
+
+			while (ss >> word) {  // Extract words from the stringstream
+				wordCount++;  // Increment word count for each word extracted
+			}
+		}
+
+		inputFile.close();  // Closing the file after counting words
+
+		return wordCount;  // Outputting the total word count
+	}
+
+	return 0;
+};
+long lance::getLineCount(std::string str) 
+{
+	long count = 0;
+	std::ifstream inFile(str);
+	count = std::count(std::istreambuf_iterator<char>(inFile), std::istreambuf_iterator<char>(), '\n');
+	return count;
+};
 
 std::string lance::formatChapter(
 	std::string str,

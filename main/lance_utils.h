@@ -13,6 +13,9 @@ namespace lance
 
 	long getCurrentTime(char type);
 
+	long getWordCount(std::string str);
+	long getLineCount(std::string str);
+
 	std::string formatChapter(
 		std::string str, 
 		bool removeCheck,
