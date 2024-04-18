@@ -276,7 +276,7 @@ void gui::Render(int iniTheme) noexcept
 	static short int lGap = 35;
 	static short int leftLayoutWidth = 350;
 					
-	static char outputFileName[250] = "_filename";
+	static char outputFileName[250] = "";
 	static std::vector outputFileExtensions = { ".txt", ".md" };
 	static std::vector<std::string> realFileNames;
 	static std::vector<std::string> oldFileNames;										// Old File Names
@@ -472,7 +472,7 @@ void gui::Render(int iniTheme) noexcept
 
 	// File Picker
 	/*static char inputLocation[50000] = "Select Input File/Folder";*/
-	static char inputLocation[50000] = "D:\\Z";
+	static char inputLocation[50000] = "";
 	static char inputFiles[5000000] = "";
 	if (currentFilePickType == 0) {
 		ImGui::SetCursorPos(ImVec2(
@@ -480,7 +480,7 @@ void gui::Render(int iniTheme) noexcept
 			lance::toShint( yPos + (lGap * 1.0) )
 		));
 		ImGui::PushItemWidth(315);
-		ImGui::InputText("##inputLocationLabel1", inputLocation, IM_ARRAYSIZE(inputLocation), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputTextWithHint("##inputLocationLabel1", "Select Input Directory", inputLocation, IM_ARRAYSIZE(inputLocation), ImGuiInputTextFlags_ReadOnly);
 		ImGui::SameLine();
 		ImGui::SetCursorPos(ImVec2(
 			lance::toShint( 335.0 ),
@@ -513,7 +513,7 @@ void gui::Render(int iniTheme) noexcept
 			lance::toShint( yPos + (lGap * 1.0) )
 		));
 		ImGui::PushItemWidth(315);
-		ImGui::InputText("##inputLocationLabel2", inputFiles, IM_ARRAYSIZE(inputFiles), ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputTextWithHint("##inputLocationLabel2", "Select Input Files", inputFiles, IM_ARRAYSIZE(inputFiles), ImGuiInputTextFlags_ReadOnly);
 		ImGui::SameLine();
 		ImGui::SetCursorPos(ImVec2(
 			lance::toShint( 335.0 ),
@@ -536,10 +536,10 @@ void gui::Render(int iniTheme) noexcept
 
 	// Output Picker
 	/*static char outputLocation[50000] = "Select Output Folder";*/
-	static char outputLocation[50000] = "D:\\Z";
+	static char outputLocation[50000] = "";
 	ImGui::SetCursorPos(ImVec2(xPos, yPos + (lGap * 2.0)));
 	ImGui::PushItemWidth(315);
-	ImGui::InputText("##outputLocationLabel", outputLocation, IM_ARRAYSIZE(outputLocation), ImGuiInputTextFlags_ReadOnly);
+	ImGui::InputTextWithHint("##outputLocationLabel", "Select Output Directory", outputLocation, IM_ARRAYSIZE(outputLocation), ImGuiInputTextFlags_ReadOnly);
 	ImGui::SameLine();
 	ImGui::SetCursorPos(ImVec2(335, yPos + (lGap * 2.0)));
 	if (ImGui::Button("...##outputLocationButton", ImVec2(25, 25))) {
@@ -738,6 +738,10 @@ void gui::Render(int iniTheme) noexcept
 				filePath = lance::getFileNames(inputFiles + std::string(""));
 			}
 
+			if (strlen(outputLocation) == 0) {
+				throw "Error : Invalid Output Path";
+			}
+
 			std::string customFilePath = outputLocation + std::string("\\") + outputFileName;
 			if (strlen(outputFileName) == 0) {
 				std::filesystem::path c1(filePath.front());
@@ -819,7 +823,7 @@ void gui::Render(int iniTheme) noexcept
 
 			ImGui::SetCursorPosX(menuPosX);
 			ImGui::PushItemWidth(315);
-			ImGui::InputText("##outputFileName", outputFileName, IM_ARRAYSIZE(outputFileName));
+			ImGui::InputTextWithHint("##outputFileName", "Enter Custom Filename", outputFileName, IM_ARRAYSIZE(outputFileName));
 
 			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + tabGap));
 			ImGui::PushID("enable_markdown_format");
@@ -1273,6 +1277,22 @@ std::string lance::removeEmptyLines(std::string str) {
 std::string lance::removeEmptySpaces(std::string str) {
 	str = std::regex_replace(str, std::regex("\\s*"), "\n");
 	return str;
+}
+
+static inline void ltrim(std::string& s) {
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+		return !std::isspace(ch);
+	}));
+}
+static inline void rtrim(std::string& s) {
+	s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}).base(), s.end()
+	);
+}
+static inline void trim(std::string& s) {
+	rtrim(s);
+	ltrim(s);
 }
 
 
