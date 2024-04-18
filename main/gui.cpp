@@ -278,6 +278,7 @@ void gui::Render(int iniTheme) noexcept
 					
 	static char outputFileName[250] = "";
 	static std::vector outputFileExtensions = { ".txt", ".md" };
+	static char seperator[1000] = "\n\n\n\n\n";
 	static std::vector<std::string> realFileNames;
 	static std::vector<std::string> oldFileNames;										// Old File Names
 	static std::vector<std::string> newFileNames;										// New File Names
@@ -758,7 +759,6 @@ void gui::Render(int iniTheme) noexcept
 
 			std::ofstream outputFile(customFilePath, std::ios::app);
 
-			std::string seperator = "\n\n\n\n\n";
 			realFileNames.clear();
 			oldFileNames.clear();
 			newFileNames.clear();
@@ -794,7 +794,8 @@ void gui::Render(int iniTheme) noexcept
 						chapter = "# " + chapter;
 					}
 
-					outputFile << chapter << seperator;
+					outputFile << chapter;
+					outputFile << seperator;
 				}
 			}
 
@@ -811,7 +812,7 @@ void gui::Render(int iniTheme) noexcept
 
 	// Tabs
 	static short int menuPosX = 370;
-	static short int menuPosY = 90;
+	static short int menuPosY = 95;
 	static short int menuGap = 5; // Margin in X
 	static short int tabGap = 55; // Margin in Y
 
@@ -821,14 +822,17 @@ void gui::Render(int iniTheme) noexcept
 		// Configuration Tab
 		if (ImGui::BeginTabItem("Configuration")) {
 
-			ImGui::SetCursorPosX(menuPosX);
-			ImGui::PushItemWidth(315);
+			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY));
+			ImGui::PushItemWidth(905);
 			ImGui::InputTextWithHint("##outputFileName", "Enter Custom Filename", outputFileName, IM_ARRAYSIZE(outputFileName));
 
-			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + tabGap));
+			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + 35));
 			ImGui::PushID("enable_markdown_format");
 			ImGui::Checkbox("Output in Markdown Format instead of Text Format", &enable_markdown_format);
 			ImGui::PopID();
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + 35*2));
+			ImGui::InputTextMultiline("##chapterseperator", seperator, IM_ARRAYSIZE(seperator), ImVec2(905, 60), ImGuiInputTextFlags_AllowTabInput);
 
 			ImGui::EndTabItem();
 		}
