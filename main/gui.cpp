@@ -276,12 +276,16 @@ void gui::Render(int iniTheme) noexcept
 	static short int lGap = 35;
 	static short int leftLayoutWidth = 350;
 					
+	static char outputFileName[250] = "_filename";
+	static std::vector outputFileExtensions = { ".txt", ".md" };
 	static std::vector<std::string> realFileNames;
 	static std::vector<std::string> oldFileNames;										// Old File Names
 	static std::vector<std::string> newFileNames;										// New File Names
 	static char outputPreviewText[9000000] = "";										// Main Output Text
 	static char chapterText[500000] = "";												// Split Output Text by Chapters
 	static char msgLabel[500] = "";
+
+	static bool enable_markdown_format = true;
 
 	static long stat_cumulative_file_size = 0;
 	static int stat_selected_chapter_index = 0;
@@ -734,8 +738,21 @@ void gui::Render(int iniTheme) noexcept
 				filePath = lance::getFileNames(inputFiles + std::string(""));
 			}
 
-			std::string outputFileName = "\\_filename.txt";
-			std::ofstream outputFile(outputLocation + outputFileName, std::ios::app);
+			std::string customFilePath = outputLocation + std::string("\\") + outputFileName;
+			if (strlen(outputFileName) == 0) {
+				std::filesystem::path c1(filePath.front());
+				std::filesystem::path c2(filePath.back());
+				customFilePath = customFilePath + c1.stem().string() + " - " + c2.stem().string();
+			}
+
+			if (enable_markdown_format == true) {
+				customFilePath += outputFileExtensions[1];
+			}
+			else {
+				customFilePath += outputFileExtensions[0];
+			}
+
+			std::ofstream outputFile(customFilePath, std::ios::app);
 
 			std::string seperator = "\n\n\n\n\n";
 			realFileNames.clear();
@@ -769,6 +786,10 @@ void gui::Render(int iniTheme) noexcept
 						currentBlankLine
 					);
 
+					if (enable_markdown_format == true) {
+						chapter = "# " + chapter;
+					}
+
 					outputFile << chapter << seperator;
 				}
 			}
@@ -786,14 +807,25 @@ void gui::Render(int iniTheme) noexcept
 
 	// Tabs
 	static short int menuPosX = 370;
+	static short int menuPosY = 90;
 	static short int menuGap = 5; // Margin in X
 	static short int tabGap = 55; // Margin in Y
 
 	ImGui::SetCursorPos(ImVec2(menuPosX, yPos));
 	if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_None))
 	{
-		// Operations Tab
+		// Configuration Tab
 		if (ImGui::BeginTabItem("Configuration")) {
+
+			ImGui::SetCursorPosX(menuPosX);
+			ImGui::PushItemWidth(315);
+			ImGui::InputText("##outputFileName", outputFileName, IM_ARRAYSIZE(outputFileName));
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + tabGap));
+			ImGui::PushID("enable_markdown_format");
+			ImGui::Checkbox("Output in Markdown Format instead of Text Format", &enable_markdown_format);
+			ImGui::PopID();
+
 			ImGui::EndTabItem();
 		}
 
