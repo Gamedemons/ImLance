@@ -270,6 +270,7 @@ void gui::Render(int iniTheme) noexcept
 	static bool aura_breathing = false;
 	static bool progressbar_anim = false;
 	static bool show_path_for_chaptername_previews = false;
+	static bool enable_overwrite_in_single_mode = true;
 
 	static short int xPos = 10;
 	static short int yPos = 60;
@@ -282,11 +283,13 @@ void gui::Render(int iniTheme) noexcept
 	static std::vector<std::string> realFileNames;
 	static std::vector<std::string> oldFileNames;										// Old File Names
 	static std::vector<std::string> newFileNames;										// New File Names
+	static int numberingPhase = 0;
 	static char outputPreviewText[9000000] = "";										// Main Output Text
 	static char chapterText[500000] = "";												// Split Output Text by Chapters
 	static char msgLabel[500] = "";
 
 	static bool enable_markdown_format = true;
+	static bool enable_overwrite_in_multimode = false;
 
 	static long stat_cumulative_file_size = 0;
 	static int stat_selected_chapter_index = 0;
@@ -438,6 +441,11 @@ void gui::Render(int iniTheme) noexcept
 		ImGui::SetCursorPos(ImVec2(xPos, 35 * 3));
 		ImGui::PushID("show_path_for_chaptername_previews");
 		ImGui::Checkbox("Show Paths for File Name Previews", &show_path_for_chaptername_previews);
+		ImGui::PopID();
+
+		ImGui::SetCursorPos(ImVec2(xPos, 35 * 4));
+		ImGui::PushID("enable_overwrite_in_single_mode");
+		ImGui::Checkbox("Enable Overwrite in Single File Output Mode", &enable_overwrite_in_single_mode);
 		ImGui::PopID();
 
 		ImGui::End();
@@ -689,6 +697,7 @@ void gui::Render(int iniTheme) noexcept
 			oldFileNames.clear();
 			newFileNames.clear();
 			stat_cumulative_file_size = 0;
+			numberingPhase = 0;
 			for (auto& chapterPath : filePath) {
 				realFileNames.push_back(chapterPath);
 				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
@@ -696,6 +705,8 @@ void gui::Render(int iniTheme) noexcept
 					renameCheck,
 					chapterPath,
 					show_path_for_chaptername_previews,
+					enable_markdown_format,
+					numberingPhase,
 					renamerText1,
 					renamerText2,
 					renamerText3,
@@ -743,64 +754,152 @@ void gui::Render(int iniTheme) noexcept
 				throw "Error : Invalid Output Path";
 			}
 
-			std::string customFilePath = outputLocation + std::string("\\") + outputFileName;
-			if (strlen(outputFileName) == 0) {
-				std::filesystem::path c1(filePath.front());
-				std::filesystem::path c2(filePath.back());
-				customFilePath = customFilePath + c1.stem().string() + " - " + c2.stem().string();
-			}
-
-			if (enable_markdown_format == true) {
-				customFilePath += outputFileExtensions[1];
-			}
-			else {
-				customFilePath += outputFileExtensions[0];
-			}
-
-			std::ofstream outputFile(customFilePath, std::ios::app);
-
-			realFileNames.clear();
-			oldFileNames.clear();
-			newFileNames.clear();
-
-			for (auto& chapterPath : filePath) {
-				realFileNames.push_back(chapterPath);
-				oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
-				newFileNames.push_back(lance::fRenameFile(
+			if (currentFileOutput == 0) {
+				std::string customFilePath = outputLocation + std::string("\\") + outputFileName;
+				if (strlen(outputFileName) == 0) {
+					std::filesystem::path c1(filePath.front());
+					std::filesystem::path c2(filePath.back());
+					customFilePath = customFilePath + c1.stem().string() + " - " + c2.stem().string();
+				}
+				customFilePath += ".txt";
+				numberingPhase = 0;
+				customFilePath = lance::fRenameFile(
 					renameCheck,
-					chapterPath,
-					show_path_for_chaptername_previews,
+					customFilePath,
+					true,
+					enable_markdown_format,
+					numberingPhase,
 					renamerText1,
 					renamerText2,
 					renamerText3,
 					renamerText4,
 					renamerText5
-				));
+				);
 
-				if (!outputFile.fail())
-				{
-					std::string chapter = lance::getFileContents(chapterPath);
-					chapter = lance::formatChapter(
-						chapter,
-						removeCheck,
-						removeText,
-						replaceCheck,
-						replaceText1,
-						replaceText2,
-						currentBlankLine
+				auto writeType = std::ios::app;
+				if (enable_overwrite_in_single_mode == true) {
+					writeType = std::ios::trunc;
+				}
+
+				std::ofstream outputFile(customFilePath, writeType);
+
+				realFileNames.clear();
+				oldFileNames.clear();
+				newFileNames.clear();
+				numberingPhase = 0;
+				for (auto& chapterPath : filePath) {
+					realFileNames.push_back(chapterPath);
+					oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
+					newFileNames.push_back(lance::fRenameFile(
+						renameCheck,
+						chapterPath,
+						show_path_for_chaptername_previews,
+						enable_markdown_format,
+						numberingPhase,
+						renamerText1,
+						renamerText2,
+						renamerText3,
+						renamerText4,
+						renamerText5
+					));
+
+					if (!outputFile.fail())
+					{
+						std::string chapter = lance::getFileContents(chapterPath);
+						chapter = lance::formatChapter(
+							chapter,
+							removeCheck,
+							removeText,
+							replaceCheck,
+							replaceText1,
+							replaceText2,
+							currentBlankLine
+						);
+
+						if (enable_markdown_format == true) {
+							chapter = "# " + chapter;
+						}
+
+						lance::trim(chapter);
+						outputFile << chapter;
+						outputFile << seperator;
+					}
+				}
+
+				outputFile.close();
+			}
+			else {
+				realFileNames.clear();
+				oldFileNames.clear();
+				newFileNames.clear();
+
+				auto writeType = std::ios::app;
+				if (enable_overwrite_in_multimode == true) {
+					writeType = std::ios::trunc;
+				}
+
+				numberingPhase = 0;
+				for (auto& chapterPath : filePath) {
+					std::string customFilePath = outputLocation + std::string("\\");
+					std::string customChapterName = "";
+
+					customChapterName = lance::fRenameFile(
+						renameCheck,
+						chapterPath,
+						false,
+						enable_markdown_format,
+						numberingPhase,
+						renamerText1,
+						renamerText2,
+						renamerText3,
+						renamerText4,
+						renamerText5
 					);
+					customFilePath += customChapterName;
 
-					if (enable_markdown_format == true) {
-						chapter = "# " + chapter;
+					numberingPhase--;
+					realFileNames.push_back(chapterPath);
+					oldFileNames.push_back(lance::extractOldName(chapterPath, show_path_for_chaptername_previews));
+					newFileNames.push_back(lance::fRenameFile(
+						renameCheck,
+						chapterPath,
+						show_path_for_chaptername_previews,
+						enable_markdown_format,
+						numberingPhase,
+						renamerText1,
+						renamerText2,
+						renamerText3,
+						renamerText4,
+						renamerText5
+					));
+					
+					std::ofstream outputFile(customFilePath, writeType);
+
+					if (!outputFile.fail())
+					{
+						std::string chapter = lance::getFileContents(chapterPath);
+						chapter = lance::formatChapter(
+							chapter,
+							removeCheck,
+							removeText,
+							replaceCheck,
+							replaceText1,
+							replaceText2,
+							currentBlankLine
+						);
+
+						if (enable_markdown_format == true) {
+							chapter = "# " + chapter;
+						}
+
+						lance::trim(chapter);
+						outputFile << chapter;
+						outputFile << seperator;
 					}
 
-					lance::trim(chapter);
-					outputFile << chapter;
-					outputFile << seperator;
+					outputFile.close();
 				}
 			}
-
-			outputFile.close();
 		}
 		catch (...) {
 			strcpy_s(msgLabel, "Error : Invalid Inputs");
@@ -835,6 +934,12 @@ void gui::Render(int iniTheme) noexcept
 			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + 35*2));
 			ImGui::InputTextMultiline("##chapterseperator", seperator, IM_ARRAYSIZE(seperator), ImVec2(905, 60), ImGuiInputTextFlags_AllowTabInput);
 			if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enter Custom Chapter Seperator");
+
+			ImGui::SetCursorPos(ImVec2(menuPosX, menuPosY + 35*4));
+			ImGui::PushID("enable_overwrite_in_multimode");
+			ImGui::Checkbox("Overwrite instead of append in Multiple File Output Type Mode", &enable_overwrite_in_multimode);
+			ImGui::PopID();
+			if (ImGui::IsItemHovered()) ImGui::SetTooltip("Recommended : Unchecked");
 
 
 			// custom regex, file tools(hasing, encoding conversation, url entity decode)
@@ -1328,6 +1433,8 @@ std::string lance::fRenameFile(
 	bool renameCheck,
 	std::string str,
 	bool pathVisible,
+	bool enableMarkdown,
+	int& currentIndex,
 	char renamerText1[],
 	char renamerText2[],
 	char renamerText3[],
@@ -1338,13 +1445,76 @@ std::string lance::fRenameFile(
 	std::filesystem::path p(str);
 	if (renameCheck) 
 	{
-		string newName = std::string(renamerText1) + p.stem().string() + std::string(renamerText2) + p.extension().string();
+		string newName = std::string(renamerText1) + p.stem().string() + std::string(renamerText2);
+		
+		// Numbering
+		if (strlen(renamerText4) > 0) {
+			string numberText = std::string(renamerText4);
+			vector<string> numberingParameters;
+			string del = ":";
+
+			int start, end = -1 * del.size();
+			do {
+				start = end + del.size();
+				end = numberText.find(del, start);
+				string part = numberText.substr(start, end - start);
+				lance::trim(part);
+				numberingParameters.push_back(part);
+			} while (end != -1);
+
+			int numberingParametersSize = numberingParameters.size();
+			int tmp_index = stoi(numberingParameters[0]);
+			if (
+				numberingParametersSize == 3 &&
+				strlen(newName.c_str()) >= tmp_index &&
+				lance::isNumber(numberingParameters[0]) && 
+				lance::isNumber(numberingParameters[1]) && 
+				lance::isNumber(numberingParameters[2])) 
+			{
+				int num1 = stoi(numberingParameters[0]);
+				int num2 = stoi(numberingParameters[1]);
+				int num3 = stoi(numberingParameters[2]);
+
+				newName.insert(num1, std::string(to_string(num2 + (num3*currentIndex))));
+				currentIndex++;
+			}
+		}
+		
+		if (strlen(renamerText5) > 0) {
+
+		}
+
+		if (enableMarkdown == true) {
+			newName += ".md";
+		}
+		else {
+			newName += ".txt";
+		}
+
 		if(!pathVisible) return newName;
 		string path = p.parent_path().string() + "\\";
 		return path + newName;
 	}
 
-	if (!pathVisible) return p.filename().string();
+	if (pathVisible == false) {
+		string newName = p.stem().string();
+		if (enableMarkdown == true) {
+			newName += ".md";
+		}
+		else {
+			newName += ".txt";
+		}
+		return newName;
+	}else {
+		string newName = p.stem().string();
+		if (enableMarkdown == true) {
+			newName += ".md";
+		}
+		else {
+			newName += ".txt";
+		}
+		return p.parent_path().string() + "\\" + newName;
+	}
 
 	return str;
 };
@@ -1391,6 +1561,17 @@ void lance::rtrim(std::string& s) {
 void lance::trim(std::string& s) {
 	rtrim(s);
 	ltrim(s);
+}
+
+bool lance::isNumber(const std::string s) {
+	char sign = s.at(0);
+	bool allNumbers = s.find_first_not_of("0123456789") == string::npos;
+	if (sign == '+' || sign == '-') {
+		string substring = s.substr(1);
+		return substring.find_first_not_of("0123456789") == string::npos;
+	}
+
+	return allNumbers;
 }
 
 

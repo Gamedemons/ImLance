@@ -37,6 +37,8 @@ namespace lance
 		bool renameCheck,
 		std::string str,
 		bool pathVisible,
+		bool enableMarkdown,
+		int& currentIndex,
 		char renamerText1[],
 		char renamerText2[],
 		char renamerText3[],
@@ -56,6 +58,7 @@ namespace lance
 	void ltrim(std::string& s);
 	void rtrim(std::string& s);
 	void trim(std::string& s);
+	bool isNumber(const std::string s);
 
 	// Type Conversions
 	short int toShint(short int x);
