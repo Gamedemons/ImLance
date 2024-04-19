@@ -794,6 +794,7 @@ void gui::Render(int iniTheme) noexcept
 						chapter = "# " + chapter;
 					}
 
+					lance::trim(chapter);
 					outputFile << chapter;
 					outputFile << seperator;
 				}
@@ -1376,18 +1377,18 @@ std::string lance::removeEmptySpaces(std::string str) {
 	return str;
 }
 
-static inline void ltrim(std::string& s) {
+void lance::ltrim(std::string& s) {
 	s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
 		return !std::isspace(ch);
 	}));
 }
-static inline void rtrim(std::string& s) {
+void lance::rtrim(std::string& s) {
 	s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
 			return !std::isspace(ch);
 		}).base(), s.end()
 	);
 }
-static inline void trim(std::string& s) {
+void lance::trim(std::string& s) {
 	rtrim(s);
 	ltrim(s);
 }

@@ -53,6 +53,10 @@ namespace lance
 	std::string removeEmptyLines(std::string str);
 	std::string removeEmptySpaces(std::string str);
 
+	void ltrim(std::string& s);
+	void rtrim(std::string& s);
+	void trim(std::string& s);
+
 	// Type Conversions
 	short int toShint(short int x);
 	short int toShint(double x);
