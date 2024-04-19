@@ -716,7 +716,7 @@ void gui::Render(int iniTheme) noexcept
 
 				std::string chapter = lance::getFileContents(chapterPath);
 				long long chapter_size = lance::getFileSize(chapterPath);
-				stat_cumulative_file_size += chapter_size;
+				stat_cumulative_file_size += (long)chapter_size;
 				if (chapter_size + outputPreview.length() < 9000000) {
 					outputPreview += chapter + seperator;
 				}
@@ -992,7 +992,7 @@ void gui::Render(int iniTheme) noexcept
 							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
 							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
 							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
-							stat_selected_chapter_size = selected_chapter_size;
+							stat_selected_chapter_size = (long)selected_chapter_size;
 							std::ifstream ch_first_line(selectedIndexPath);
 							std::getline(ch_first_line, stat_selected_chapter_firstline);
 							if (selected_chapter_size < 490000) {
@@ -1012,7 +1012,7 @@ void gui::Render(int iniTheme) noexcept
 							string selectedIndexPath = realFileNames.at(oldChapterName_Index);
 							stat_selected_chapter_name = lance::extractOldName(selectedIndexPath, false);
 							long long selected_chapter_size = lance::getFileSize(selectedIndexPath);
-							stat_selected_chapter_size = selected_chapter_size;
+							stat_selected_chapter_size = (long)selected_chapter_size;
 							std::ifstream ch_first_line(selectedIndexPath);
 							std::getline(ch_first_line, stat_selected_chapter_firstline);
 							if (selected_chapter_size < 490000) {
@@ -1394,7 +1394,7 @@ long lance::getLineCount(std::string str)
 {
 	long count = 0;
 	std::ifstream inFile(str);
-	count = std::count(std::istreambuf_iterator<char>(inFile), std::istreambuf_iterator<char>(), '\n');
+	count = (long)std::count(std::istreambuf_iterator<char>(inFile), std::istreambuf_iterator<char>(), '\n');
 	return count;
 };
 
@@ -1463,9 +1463,8 @@ std::string lance::fRenameFile(
 			} while (end != -1);
 
 			int numberingParametersSize = numberingParameters.size();
-			int tmp_index = stoi(numberingParameters[0]);
-			if (
-				numberingParametersSize == 3 &&
+			unsigned int tmp_index = abs(stoi(numberingParameters[0]));
+			if (numberingParametersSize == 3 &&
 				strlen(newName.c_str()) >= tmp_index &&
 				lance::isNumber(numberingParameters[0]) && 
 				lance::isNumber(numberingParameters[1]) && 
